@@ -11045,6 +11045,21 @@ internal_trusted_mcp_transport = InternalTrustedMCPTransportBridge(streamable_ht
 app.mount("/mcp", app=mcp_transport_app.handle_streamable_http)
 app.mount("/_internal/mcp/transport", app=internal_trusted_mcp_transport.handle_streamable_http)
 
+# Mount React SPA — served at /app regardless of UI_ENABLED
+# Uses settings.static_dir (absolute path via importlib.resources) so the path
+# resolves correctly regardless of where uvicorn is launched from.
+# Wrapped in try/except: the build output is git-ignored, so the directory may
+# not exist until `pnpm run build` has been run.
+try:
+    app.mount(
+        "/app",
+        StaticFiles(directory=str(settings.static_dir / "app"), html=True),
+        name="frontend",
+    )
+    logger.info("React SPA mounted at /app from %s", settings.static_dir / "app")
+except RuntimeError:
+    logger.warning("React SPA not mounted — build output not found at %s/app (run: pnpm run build)", settings.static_dir)
+
 # Conditional static files mounting and root redirect
 if UI_ENABLED:
     # Mount static files for UI
